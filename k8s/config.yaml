@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: swiftkart-config
+data:
+  REDIS_HOST: redis
+  KAFKA_BOOTSTRAP: kafka:9092
+  DB_HOST: postgres
+  TIME_SCALE: "6"
+  INVENTORY_URL: http://inventory-service:8092
+  ORDER_SERVICE_URL: http://order-service:8091
+  INVENTORY_SERVICE_URL: http://inventory-service:8092
+  DISPATCH_SERVICE_URL: http://dispatch-service:8093
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+---
+# Demo values only: use a secret manager (External Secrets, Sealed Secrets, cloud CSI driver) in a real cluster.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: swiftkart-secrets
+type: Opaque
+stringData:
+  JWT_SECRET: change-me-in-production-this-is-a-32+-byte-dev-secret
+  DB_USER: swiftkart
+  DB_PASSWORD: swiftkart
+  OPS_PASSWORD: swiftkart

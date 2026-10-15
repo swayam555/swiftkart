@@ -1,0 +1,124 @@
+# Full stack:  docker compose up --build   then open http://localhost:3002 (ops console at /ops)
+
+x-java: &java
+  restart: unless-stopped
+  environment: &java-env
+    REDIS_HOST: redis
+    KAFKA_BOOTSTRAP: kafka:9092
+    DB_HOST: postgres
+    TIME_SCALE: ${TIME_SCALE:-6}
+    INVENTORY_URL: http://inventory-service:8092
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+    kafka: { condition: service_healthy }
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: swiftkart
+      POSTGRES_PASSWORD: swiftkart
+      POSTGRES_DB: swiftkart
+    volumes:
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U swiftkart"]
+      interval: 5s
+      retries: 20
+    mem_limit: 256m
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--maxmemory", "128mb", "--maxmemory-policy", "volatile-lru", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+    mem_limit: 192m
+
+  kafka:
+    image: apache/kafka:3.9.2
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+      KAFKA_HEAP_OPTS: "-Xmx320m -Xms320m"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      retries: 20
+    mem_limit: 640m
+
+  inventory-service:
+    <<: *java
+    build: { context: ., target: inventory-service }
+    image: swiftkart/inventory-service:1.0.0
+    environment:
+      <<: *java-env
+      DB_NAME: inventory
+    healthcheck: &health
+      test: ["CMD", "curl", "-fs", "http://localhost:8092/actuator/health/readiness"]
+      interval: 10s
+      retries: 30
+      start_period: 30s
+    mem_limit: 448m
+
+  order-service:
+    <<: *java
+    build: { context: ., target: order-service }
+    image: swiftkart/order-service:1.0.0
+    environment:
+      <<: *java-env
+      DB_NAME: orders
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-fs", "http://localhost:8091/actuator/health/readiness"]
+    mem_limit: 640m
+
+  dispatch-service:
+    <<: *java
+    build: { context: ., target: dispatch-service }
+    image: swiftkart/dispatch-service:1.0.0
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-fs", "http://localhost:8093/actuator/health/readiness"]
+    mem_limit: 384m
+
+  gateway:
+    <<: *java
+    build: { context: ., target: gateway }
+    image: swiftkart/gateway:1.0.0
+    environment:
+      <<: *java-env
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-this-is-a-32+-byte-dev-secret}
+      ORDER_SERVICE_URL: http://order-service:8091
+      INVENTORY_SERVICE_URL: http://inventory-service:8092
+      DISPATCH_SERVICE_URL: http://dispatch-service:8093
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      <<: *health
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/actuator/health/readiness"]
+    ports: ["8082:8080"]
+    mem_limit: 384m
+
+  frontend:
+    build: ./frontend
+    image: swiftkart/frontend:1.0.0
+    restart: unless-stopped
+    depends_on: [gateway]
+    ports: ["3002:80"]
+    mem_limit: 64m
+
+volumes:
+  pgdata:

@@ -1,0 +1,51 @@
+spring:
+  application:
+    name: dispatch-service
+  threads:
+    virtual:
+      enabled: true
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP:localhost:9092}
+    consumer:
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      properties:
+        enable.idempotence: true
+        linger.ms: 5
+
+server:
+  port: ${PORT:8093}
+  shutdown: graceful
+  tomcat:
+    # Flash sales open hundreds of connections in the same instant; the default backlog of
+    # 100 would refuse some of them.
+    accept-count: 1000
+    max-connections: 10000
+
+swiftkart:
+  time-scale: ${TIME_SCALE:6}
+  riders-per-store: ${RIDERS_PER_STORE:8}
+  inventory-url: ${INVENTORY_URL:http://localhost:8092}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+

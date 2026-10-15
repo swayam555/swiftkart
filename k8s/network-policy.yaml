@@ -1,0 +1,44 @@
+# Services trust the X-User-* identity headers set by the gateway, so only the gateway and the
+# services themselves may reach them. Stock reservations (/internal/...) are reachable only
+# from order-service.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: apps-from-gateway-and-peers
+spec:
+  podSelector:
+    matchExpressions:
+      - { key: app, operator: In, values: [order-service, dispatch-service] }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app, operator: In, values: [gateway, order-service, inventory-service, dispatch-service] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: inventory-from-gateway-order-dispatch
+spec:
+  podSelector:
+    matchLabels: { app: inventory-service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app, operator: In, values: [gateway, order-service, dispatch-service] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-tier-from-apps-only
+spec:
+  podSelector:
+    matchLabels: { tier: data }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { tier: app } }
+        - podSelector: { matchLabels: { tier: data } }

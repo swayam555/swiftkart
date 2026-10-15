@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/bricolage-grotesque";
+
+@theme {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Bricolage Grotesque Variable", "Inter Variable", ui-sans-serif, sans-serif;
+
+  --color-cream: #faf8f3;
+  --color-surface: #ffffff;
+  --color-ink: #1a1d1a;
+  --color-ink-2: #464a45;
+  --color-muted: #75796f;
+  --color-line: #ebe7dd;
+  --color-line-2: #ddd8cb;
+  --color-brand: #0b6b3a;
+  --color-brand-dark: #08542d;
+  --color-brand-soft: #e6f2ea;
+  --color-sun: #ffb020;
+  --color-sun-soft: #fff4dc;
+  --color-danger: #c4382a;
+  --color-info: #2563a8;
+
+  --radius-card: 16px;
+  --shadow-card: 0 1px 2px rgb(26 29 26 / 0.04);
+  --shadow-pop: 0 18px 40px -18px rgb(26 29 26 / 0.35), 0 2px 6px rgb(26 29 26 / 0.06);
+}
+
+html { scroll-behavior: smooth; }
+body { @apply bg-cream text-ink antialiased; }
+::selection { background: var(--color-sun); color: var(--color-ink); }
+.num { font-variant-numeric: tabular-nums; }
+.display { font-family: var(--font-display); font-optical-sizing: auto; }
+.input {
+  @apply mt-1.5 w-full rounded-xl border border-line-2 bg-surface px-3.5 py-2.5 text-sm text-ink outline-none transition;
+  @apply placeholder:text-muted/70 focus:border-brand focus:ring-4 focus:ring-brand/10;
+}
+.label { @apply block text-[13px] font-medium text-ink-2; }
+.focus-ring { @apply outline-none focus-visible:ring-4 focus-visible:ring-brand/20; }
+.skeleton { @apply animate-pulse rounded-lg bg-line/70; }
+
+.leaflet-container { font: inherit; background: #eef0ea; }
+/* Mute the OSM basemap so markers stand out. */
+.leaflet-tile-pane { filter: grayscale(0.85) contrast(0.92) brightness(1.04) sepia(0.12); }
+.leaflet-control-attribution { font-size: 10px !important; background: rgb(255 255 255 / 0.8) !important; }
+.leaflet-control-zoom a { color: var(--color-ink) !important; }
+.leaflet-tooltip { border-radius: 8px; border: 1px solid var(--color-line); box-shadow: var(--shadow-pop); font-size: 12px; padding: 4px 8px; }
+@keyframes ring { 0% { transform: scale(.7); opacity: .7 } 100% { transform: scale(2.2); opacity: 0 } }
+.pin-pulse::after { content: ""; position: absolute; inset: 0; border-radius: 9999px; background: currentColor; animation: ring 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto } .pin-pulse::after { animation: none } }
